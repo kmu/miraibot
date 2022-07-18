@@ -1,13 +1,41 @@
 import json
 import os
+import signal
 import socket
 from io import StringIO
+from time import sleep
 
 import pandas as pd
 import paramiko
 import requests
 from paramiko_expect import SSHClientInteraction
 from slack_sdk.web import WebClient
+
+
+class TimeoutException(Exception):
+    def __init__(self, seconds, msg=""):
+        self.timeout_limit = seconds
+        if msg != "":
+            msg = ": " + msg
+        super().__init__(f"Timeout {seconds} sec" + msg)
+
+
+class TimeoutContext:
+    def __init__(self, seconds, err_msg=""):
+        self.seconds = seconds
+        self.err_msg = err_msg
+
+    def handler(self, signum, frame):
+        raise TimeoutException(self.seconds, self.err_msg)
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handler)
+        signal.alarm(self.seconds)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
 
 PROMPT = "(\([\-0-9A-z_]+\)\s)?~\s>\s"  # noqa: W605
 
@@ -17,14 +45,60 @@ user = os.environ["SSH_USER"]
 host = os.environ["SSH_GATEWAY_HOST"]
 machine = os.environ["SSH_MACHINE"]
 
+DATECMD = os.environ["DATECMD"]
+DATEK = os.environ["DATEK"]
+DATEN = os.environ["DATEN"]
+DATEP = os.environ["DATEP"]
+DATEQSTAT = os.environ["DATEQSTAT"]
 
-def post_lab_slack(text: str) -> None:
+
+def check_date():
+    try:
+        with TimeoutContext(60):
+            with get_interaction() as interact:
+                interact.send("")
+                interact.expect(PROMPT)
+
+                interact.send('eval "$(ssh-agent)"')
+                interact.expect(PROMPT)
+
+                interact.send("ssh-add " + DATEK)
+                sleep(3)
+
+                interact.send(DATEP)
+                interact.expect(PROMPT)
+
+                interact.send(DATECMD)
+                interact.expect(PROMPT)
+
+                interact.send(DATEQSTAT)
+                interact.expect(PROMPT)
+
+                output = interact.current_output
+                output = "\n".join(output.split("\n")[1:-1])
+
+                output = output.replace(" R ", " :pi-run: ")
+                output = output.replace(" Q ", " :gre-humming: ")
+                output = output.replace("  ", " ")
+
+                if ":" not in output:
+                    output = ":gre-humming:"
+
+                post_lab_slack(":gre-humming:", DATEN, ":datem:")
+
+                return None
+
+    except TimeoutException:
+        post_lab_slack(":maintenance:", DATEN, ":datem:")
+
+
+def post_lab_slack(text: str, username="mirai", emoji: str = ":ssh-mirai:") -> None:
     web_client = WebClient(token=os.environ["LAB_TOKEN"])
     web_client.chat_postMessage(
         text=text,
         channel=os.environ["LAB_CHANNEL"],
-        username="stat bot mirai",
-        icon_emoji=":ssh-mirai:",
+        username=username,
+        icon_emoji=emoji,
     )
 
 
@@ -42,7 +116,7 @@ def post_slack(text: str) -> None:
     )
 
 
-def get_output(command: str) -> None:
+def get_interaction():
     proxy = paramiko.ProxyCommand(f"ssh {user}@{host} -p 22 nc {machine} 22")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
@@ -51,9 +125,14 @@ def get_output(command: str) -> None:
     def output(x):
         return None
 
-    with SSHClientInteraction(
+    return SSHClientInteraction(
         client, timeout=10, display=True, output_callback=output, tty_width=250
-    ) as interact:
+    )
+
+
+def get_output(command: str) -> None:
+
+    with get_interaction() as interact:
         interact.send("")
         interact.expect(PROMPT)
 
@@ -67,7 +146,7 @@ def get_output(command: str) -> None:
 
 def lab_update():
     mirai = get_output("/usr/sge/bin/linux-x64/qstat")
-    mirai = f"*mirai*\n```\n{mirai}\n```"
+    mirai = f"```\n{mirai}\n```"
     mirai_last = ""
     if os.path.exists("mirai.txt"):
         with open("mirai.txt") as f:
@@ -79,6 +158,10 @@ def lab_update():
     if mirai != mirai_last:
         # post_slack(mirai)
         post_lab_slack(mirai)
+
+    usage = get_output("/usr/sge/bin/linux-x64/qstat -f")
+    # usage = f"```\n{usage}\n```"
+    post_lab_slack(usage)
 
 
 def my_update():
@@ -103,7 +186,7 @@ def my_update():
 
 def memory_usage():
     qhost = get_output("/usr/sge/bin/linux-x64/qhost")
-    post_lab_slack(f"```\n{qhost}\n```\n")
+    # post_lab_slack(f"```\n{qhost}\n```\n")
     df = pd.read_csv(
         StringIO(qhost),
         skiprows=3,
@@ -181,9 +264,10 @@ def memory_usage():
 
 
 def main():
-    # my_update()
-    memory_usage()
+
     lab_update()
+    memory_usage()
+    check_date()
 
 
 if __name__ == "__main__":

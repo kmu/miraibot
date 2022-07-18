@@ -53,5 +53,11 @@ jobs:
         SSH_USER: ${{ secrets.SSH_USER }}
         SSH_MACHINE: ${{ secrets.SSH_MACHINE }}
         SSH_GATEWAY_HOST: ${{ secrets.SSH_GATEWAY_HOST }}
+        DATECMD: ${{ secrets.DATECMD }}
+        DATEK: ${{ secrets.DATEK }}
+        DATEP: ${{ secrets.DATEP }}
+        DATEN: ${{ secrets.DATEN }}
+        DATEQSTAT: ${{ secrets.DATEQSTAT }}
+
       run: |
         python bot.py
