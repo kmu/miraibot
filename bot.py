@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import socket
+from collections import defaultdict
 from io import StringIO
 from time import sleep
 
@@ -93,14 +94,16 @@ def check_date():
         post_lab_slack(":maintenance:", DATEN, ":datem:")
 
 
-def post_lab_slack(text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None) -> None:
+def post_lab_slack(
+    text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
+) -> None:
     web_client = WebClient(token=os.environ["LAB_TOKEN"])
     return web_client.chat_postMessage(
         text=text,
         channel=os.environ["LAB_CHANNEL"],
         username=username,
         icon_emoji=emoji,
-        thread_ts=ts
+        thread_ts=ts,
     )
 
 
@@ -166,44 +169,65 @@ def lab_update(ts=None):
 
 
 def pretty_lab_update():
-    qstat = get_output("/usr/sge/bin/linux-x64/qstat  -f | grep BIP")
-    df = pd.read_csv(
-        StringIO(qstat),
-        sep="\s+",  # noqa: W605
-        names=["queue", "bip", "reserve", "load", "os"],
-    )
+    qstat = get_output("qstat -f")
 
-    df["group"] = df.queue.str.split("@").str[0]
-    df["reserved_cpus"] = df.reserve.str.split("/").str[1]
-    df["equipped_cpus"] = df.reserve.str.split("/").str[2]
+    reserved_d = defaultdict(list)
+    actual_d = defaultdict(list)
+
+    for node in qstat.split(
+        "---------------------------------------------------------------------------------\n"
+    ):
+
+        if ".q@compute-" in node:
+            queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
+            load_avg = float(_load_avg)
+            q_group = queue.split("@")[0]
+
+            _, _, _equipped_cpus = resv_used_tot.split("/")
+            equipped_cpus = float(_equipped_cpus)
+
+            reserved_emoji = ":ジョブなし:"
+
+            if len(node.split("\n")) > 2:
+
+                user_d = defaultdict(int)
+
+                for user_line in node.split("\n")[1:-1]:
+                    user = user_line.split()[3]
+                    user_resv = user_line.split()[-1]
+
+                    user_d[user] += int(user_resv)
+
+                if len(user_d.keys()) == 1:
+                    if list(user_d.values())[0] == equipped_cpus:
+                        reserved_emoji = f":{user}:"
+                    else:
+                        reserved_emoji = ":余裕:"
+                else:
+                    if sum(list(user_d.values())) == equipped_cpus:
+                        reserved_emoji = ":全力:"
+                    else:
+                        reserved_emoji = ":余裕:"
+
+            if load_avg > float(equipped_cpus) + 0.5:
+                actual_emoji = ":cpu利用率超過:"
+            elif load_avg > float(equipped_cpus) - 0.5:
+                actual_emoji = ":全力:"
+            elif load_avg < 1.0:
+                actual_emoji = ":ジョブなし:"
+            elif load_avg < 32:
+                actual_emoji = f":n{int(load_avg)}:"
+            else:
+                actual_emoji = ":余裕:"
+
+            reserved_d[q_group] += [reserved_emoji]
+            actual_d[q_group] += [actual_emoji]
 
     msg = ""
-
-    for group in df.group.unique():
+    for group, reserved in reserved_d.items():
         msg += f"*{group}*\n"
-
-        subd = df[df.group == group]
-        states = []
-        load_states = []
-        for _, row in subd.iterrows():
-
-            if row.reserved_cpus == row.equipped_cpus:
-                states.append(":全力:")
-            elif row.reserved_cpus == "0":
-                states.append(":ジョブなし:")
-            else:
-                states.append(":余裕:")
-
-            if row.load > float(row.equipped_cpus) + 0.5:
-                load_states.append(":cpu利用率超過:")
-            elif row.load > float(row.equipped_cpus) - 0.5:
-                load_states.append(":全力:")
-            elif row.load < 0.5:
-                load_states.append(":ジョブなし:")
-            else:
-                load_states.append(":余裕:")
-        msg += " ".join(states) + " reserved\n"
-        msg += " ".join(load_states) + " actual\n"
+        msg += " ".join(reserved) + " reserved\n"
+        msg += " ".join(actual_d[group]) + " actual\n"
 
     return post_lab_slack(msg)
 
@@ -312,7 +336,7 @@ def main():
     try:
         memory_usage()
         res = pretty_lab_update()
-        lab_update(ts=res.get('ts', None))
+        lab_update(ts=res.get("ts", None))
         check_date()
     except paramiko.ssh_exception.SSHException:
         sleep(180)
