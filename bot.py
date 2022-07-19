@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import socket
+from collections import defaultdict
 from io import StringIO
 from time import sleep
 
@@ -10,7 +11,6 @@ import paramiko
 import requests
 from paramiko_expect import SSHClientInteraction
 from slack_sdk.web import WebClient
-from collections import defaultdict
 
 
 class TimeoutException(Exception):
@@ -94,14 +94,16 @@ def check_date():
         post_lab_slack(":maintenance:", DATEN, ":datem:")
 
 
-def post_lab_slack(text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None) -> None:
+def post_lab_slack(
+    text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
+) -> None:
     web_client = WebClient(token=os.environ["LAB_TOKEN"])
     return web_client.chat_postMessage(
         text=text,
         channel=os.environ["LAB_CHANNEL"],
         username=username,
         icon_emoji=emoji,
-        thread_ts=ts
+        thread_ts=ts,
     )
 
 
@@ -172,7 +174,9 @@ def pretty_lab_update():
     reserved_d = defaultdict(list)
     actual_d = defaultdict(list)
 
-    for node in qstat.split("---------------------------------------------------------------------------------\n"):
+    for node in qstat.split(
+        "---------------------------------------------------------------------------------\n"
+    ):
 
         if ".q@compute-" in node:
             queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
@@ -221,40 +225,11 @@ def pretty_lab_update():
             reserved_d[q_group] += [reserved_emoji]
             actual_d[q_group] += [actual_emoji]
 
-
     msg = ""
     for group, reserved in reserved_d.items():
         msg += f"*{group}*\n"
         msg += " ".join(reserved) + " reserved\n"
         msg += " ".join(actual_d[group]) + " actual\n"
-
-
-
-    for group in df.group.unique():
-        msg += f"*{group}*\n"
-
-        subd = df[df.group == group]
-        states = []
-        load_states = []
-        for _, row in subd.iterrows():
-
-            if row.reserved_cpus == row.equipped_cpus:
-                states.append(":全力:")
-            elif row.reserved_cpus == "0":
-                states.append(":ジョブなし:")
-            else:
-                states.append(":余裕:")
-
-            if row.load > float(row.equipped_cpus) + 0.5:
-                load_states.append(":cpu利用率超過:")
-            elif row.load > float(row.equipped_cpus) - 0.5:
-                load_states.append(":全力:")
-            elif row.load < 0.5:
-                load_states.append(":ジョブなし:")
-            else:
-                load_states.append(":余裕:")
-        msg += " ".join(states) + " reserved\n"
-        msg += " ".join(load_states) + " actual\n"
 
     return post_lab_slack(msg)
 
@@ -363,7 +338,7 @@ def main():
     try:
         memory_usage()
         res = pretty_lab_update()
-        lab_update(ts=res.get('ts', None))
+        lab_update(ts=res.get("ts", None))
         check_date()
     except paramiko.ssh_exception.SSHException:
         sleep(180)
