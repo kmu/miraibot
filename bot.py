@@ -209,8 +209,6 @@ def pretty_lab_update():
                     else:
                         reserved_emoji = ":余裕:"
 
-            # actual emoji
-
             if load_avg > float(equipped_cpus) + 0.5:
                 actual_emoji = ":cpu利用率超過:"
             elif load_avg > float(equipped_cpus) - 0.5:
