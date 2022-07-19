@@ -93,13 +93,14 @@ def check_date():
         post_lab_slack(":maintenance:", DATEN, ":datem:")
 
 
-def post_lab_slack(text: str, username="mirai", emoji: str = ":ssh-mirai:") -> None:
+def post_lab_slack(text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None) -> None:
     web_client = WebClient(token=os.environ["LAB_TOKEN"])
-    web_client.chat_postMessage(
+    return web_client.chat_postMessage(
         text=text,
         channel=os.environ["LAB_CHANNEL"],
         username=username,
         icon_emoji=emoji,
+        thread_ts=ts
     )
 
 
@@ -144,10 +145,10 @@ def get_output(command: str) -> None:
         return output
 
 
-def lab_update():
+def lab_update(ts=None):
     usage = get_output("/usr/sge/bin/linux-x64/qstat -f")
     # usage = f"```\n{usage}\n```"
-    post_lab_slack(usage)
+    post_lab_slack(usage, ts=ts)
 
     mirai = get_output("/usr/sge/bin/linux-x64/qstat")
     mirai = f"```\n{mirai}\n```"
@@ -161,7 +162,7 @@ def lab_update():
 
     if mirai != mirai_last:
         # post_slack(mirai)
-        post_lab_slack(mirai)
+        post_lab_slack(mirai, ts=ts)
 
 
 def pretty_lab_update():
@@ -204,7 +205,7 @@ def pretty_lab_update():
         msg += " ".join(states) + " reserved\n"
         msg += " ".join(load_states) + " actual\n"
 
-    post_lab_slack(msg)
+    return post_lab_slack(msg)
 
 
 def my_update():
@@ -310,8 +311,8 @@ def main():
 
     try:
         memory_usage()
-        lab_update()
-        pretty_lab_update()
+        res = pretty_lab_update()
+        lab_update(ts=res.get('ts', None))
         check_date()
     except paramiko.ssh_exception.SSHException:
         sleep(180)
