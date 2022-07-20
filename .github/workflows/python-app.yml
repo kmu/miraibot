@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python application
+name: Cron
 
 on:
   schedule:
@@ -40,17 +40,17 @@ jobs:
         known_hosts: ${{ secrets.KNOWN_HOSTS }}
         config: ${{ secrets.CONFIG }}
         if_key_exists: fail
-    - name: Commit and push if changed
-      run: |-
-        rm README.md
-        today=$(date "+%Y/%m/%d")
-        echo ":white_check_mark: ${today}" > README.md
-        git diff
-        git config --global user.email "actions@users.noreply.github.com"
-        git config --global user.name "README-bot"
-        git add README.md
-        git commit -m "Updated content" || exit 0
-        git push
+#     - name: Commit and push if changed
+#       run: |-
+#         rm README.md
+#         today=$(date "+%Y/%m/%d")
+#         echo ":white_check_mark: ${today}" > README.md
+#         git diff
+#         git config --global user.email "actions@users.noreply.github.com"
+#         git config --global user.name "README-bot"
+#         git add README.md
+#         git commit -m "Updated content" || exit 0
+#         git push
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip

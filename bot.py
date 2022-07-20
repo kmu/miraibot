@@ -124,7 +124,9 @@ def post_slack(text: str) -> None:
 def get_interaction():
     proxy = paramiko.ProxyCommand(f"ssh {user}@{host} -p 22 nc {machine} 22")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+    client.set_missing_host_key_policy(
+        paramiko.AutoAddPolicy
+    )  # lgtm [py/paramiko-missing-host-key-validation]
     client.connect(machine, port=22, username=user, sock=proxy)
 
     def output(x):
