@@ -115,7 +115,7 @@ def post_slack(text: str) -> None:
             {
                 "text": text,
                 "username": "stat bot ({0})".format(socket.gethostname()),
-                "link_names": 1,  # 名前をリンク化
+                "link_names": 1,
             }
         ),
     )
@@ -127,7 +127,7 @@ def get_interaction():
     client.set_missing_host_key_policy(
         paramiko.AutoAddPolicy
     )  # lgtm [py/paramiko-missing-host-key-validation]
-    client.connect(machine, port=22, username=user, sock=proxy)
+    client.connect(machine, username=user, sock=proxy)
 
     def output(x):
         return None
@@ -278,8 +278,6 @@ def memory_usage():
         df.loc[:, mem] = (
             df[mem].str.replace("M", "e3").str.replace("G", "e6").astype(float)
         )
-
-    # df.used_mem / df.max_mem > 0.9
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
 
