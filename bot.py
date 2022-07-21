@@ -124,9 +124,9 @@ def post_slack(text: str) -> None:
 def get_interaction():
     proxy = paramiko.ProxyCommand(f"ssh {user}@{host} -p 22 nc {machine} 22")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(
+    client.set_missing_host_key_policy(  # lgtm [py/paramiko-missing-host-key-validation]
         paramiko.AutoAddPolicy
-    )  # lgtm [py/paramiko-missing-host-key-validation]
+    )
     client.connect(machine, username=user, sock=proxy)
 
     def output(x):
@@ -276,7 +276,7 @@ def memory_usage():
 
     for mem in "max_mem", "used_mem", "max_swap", "used_swap":
         df.loc[:, mem] = (
-            df[mem].str.replace("M", "e3").str.replace("G", "e6").astype(float)
+            df[mem].str.replace("-", "0").str.replace("M", "e3").str.replace("G", "e6").astype(float)
         )
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
