@@ -276,7 +276,11 @@ def memory_usage():
 
     for mem in "max_mem", "used_mem", "max_swap", "used_swap":
         df.loc[:, mem] = (
-            df[mem].str.replace("-", "0").str.replace("M", "e3").str.replace("G", "e6").astype(float)
+            df[mem]
+            .str.replace("-", "0")
+            .str.replace("M", "e3")
+            .str.replace("G", "e6")
+            .astype(float)
         )
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
