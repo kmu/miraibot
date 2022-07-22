@@ -174,6 +174,7 @@ def pretty_lab_update():
     qstat = get_output("qstat -f")
     qstat = qstat.split("\n\n########")[0]
     qstat = qstat.replace("linux-x64     a", "linux-x64")
+    qstat += "\n"
 
     reserved_d = defaultdict(list)
     actual_d = defaultdict(list)
