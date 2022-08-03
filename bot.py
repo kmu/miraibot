@@ -82,6 +82,8 @@ def check_date():
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
+                
+                print(output)
 
                 if ":" not in output:
                     output = ":ジョブなし:"
