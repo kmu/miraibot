@@ -82,12 +82,10 @@ def check_date():
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
-                
-                print(output)
-
+           
                 if ":" not in output:
                     output = ":ジョブなし:"
-                elif "Connection closed by remote host" in output:
+                elif "EXCESS TIME RECV_READY TIMEOUT" in output:
                     output = ":maintenance:"
 
                 post_lab_slack(output, DATEN, ":datem:")
