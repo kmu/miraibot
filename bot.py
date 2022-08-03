@@ -58,7 +58,10 @@ def check_date():
         with TimeoutContext(60):
             with get_interaction() as interact:
                 interact.send("")
-                interact.expect(PROMPT)
+                res = interact.expect(PROMPT)
+                if res == -1:
+                    post_lab_slack(":maintenance:", DATEN, ":datem:")
+                    return None
 
                 interact.send('eval "$(ssh-agent)"')
                 interact.expect(PROMPT)
@@ -85,8 +88,6 @@ def check_date():
            
                 if ":" not in output:
                     output = ":ジョブなし:"
-                elif "EXCESS TIME RECV_READY TIMEOUT" in output:
-                    output = ":maintenance:"
 
                 post_lab_slack(output, DATEN, ":datem:")
 
