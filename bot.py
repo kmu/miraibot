@@ -59,18 +59,15 @@ def check_date():
             with get_interaction() as interact:
                 interact.send("")
                 res = interact.expect(PROMPT)
-                if res == -1:
-                    post_lab_slack(":maintenance:", DATEN, ":datem:")
-                    return None
 
                 interact.send('eval "$(ssh-agent)"')
                 interact.expect(PROMPT)
 
                 interact.send("ssh-add " + DATEK)
                 sleep(3)
-
+               
                 interact.send(DATEP)
-                interact.expect(PROMPT)
+                res = interact.expect(PROMPT)
 
                 interact.send(DATECMD)
                 interact.expect(PROMPT)
@@ -86,6 +83,8 @@ def check_date():
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
            
+                if res == -1:
+                    output = ":maintenance:"
                 if ":" not in output:
                     output = ":ジョブなし:"
 
@@ -136,8 +135,7 @@ def get_interaction():
         return None
 
     return SSHClientInteraction(
-#        client, timeout=10, display=True, output_callback=output, tty_width=250
-        client, timeout=10, display=True, tty_width=250
+        client, timeout=10, display=True, output_callback=output, tty_width=250
     )
 
 
