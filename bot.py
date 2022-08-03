@@ -137,7 +137,7 @@ def get_interaction():
 
     return SSHClientInteraction(
 #        client, timeout=10, display=True, output_callback=output, tty_width=250
-        client, timeout=10, display=True, output_callback=output, tty_width=250
+        client, timeout=10, display=True, tty_width=250
     )
 
 
@@ -221,7 +221,7 @@ def pretty_lab_update():
                     else:
                         reserved_emoji = ":余裕:"
 
-            if load_avg == "-NA-":
+            if _load_avg == "-NA-":
                 actual_emoji = ":disconnected:"
             elif load_avg > float(equipped_cpus) + 0.5:
                 actual_emoji = ":cpu利用率超過:"
