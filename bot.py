@@ -135,6 +135,7 @@ def get_interaction():
         return None
 
     return SSHClientInteraction(
+#        client, timeout=10, display=True, output_callback=output, tty_width=250
         client, timeout=10, display=True, output_callback=output, tty_width=250
     )
 
