@@ -85,6 +85,8 @@ def check_date():
 
                 if ":" not in output:
                     output = ":ジョブなし:"
+                elif "Connection closed by remote host" in output:
+                    output = ":maintenance:"
 
                 post_lab_slack(output, DATEN, ":datem:")
 
