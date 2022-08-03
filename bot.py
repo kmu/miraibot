@@ -85,7 +85,7 @@ def check_date():
            
                 if res == -1:
                     output = ":maintenance:"
-                if ":" not in output:
+                elif ":" not in output:
                     output = ":ジョブなし:"
 
                 post_lab_slack(output, DATEN, ":datem:")
