@@ -54,11 +54,12 @@ DATEQSTAT = os.environ["DATEQSTAT"]
 
 
 def check_date():
+    output = ""
     try:
         with TimeoutContext(60):
             with get_interaction() as interact:
                 interact.send("")
-                res = interact.expect(PROMPT)
+                interact.expect(PROMPT)
 
                 interact.send('eval "$(ssh-agent)"')
                 interact.expect(PROMPT)
@@ -67,7 +68,7 @@ def check_date():
                 sleep(3)
 
                 interact.send(DATEP)
-                res = interact.expect(PROMPT)
+                interact.expect(PROMPT)
 
                 interact.send(DATECMD)
                 interact.expect(PROMPT)
@@ -83,7 +84,7 @@ def check_date():
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
 
-                if res == -1:
+                if "" == output.strip():
                     output = ":maintenance:"
                 elif ":" not in output:
                     output = ":ジョブなし:"
