@@ -58,16 +58,16 @@ def check_date():
         with TimeoutContext(60):
             with get_interaction() as interact:
                 interact.send("")
-                interact.expect(PROMPT)
+                res = interact.expect(PROMPT)
 
                 interact.send('eval "$(ssh-agent)"')
                 interact.expect(PROMPT)
 
                 interact.send("ssh-add " + DATEK)
                 sleep(3)
-
+               
                 interact.send(DATEP)
-                interact.expect(PROMPT)
+                res = interact.expect(PROMPT)
 
                 interact.send(DATECMD)
                 interact.expect(PROMPT)
@@ -82,8 +82,10 @@ def check_date():
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
-
-                if ":" not in output:
+           
+                if res == -1:
+                    output = ":maintenance:"
+                elif ":" not in output:
                     output = ":ジョブなし:"
 
                 post_lab_slack(output, DATEN, ":datem:")
@@ -115,7 +117,7 @@ def post_slack(text: str) -> None:
             {
                 "text": text,
                 "username": "stat bot ({0})".format(socket.gethostname()),
-                "link_names": 1,  # 名前をリンク化
+                "link_names": 1,
             }
         ),
     )
@@ -124,10 +126,10 @@ def post_slack(text: str) -> None:
 def get_interaction():
     proxy = paramiko.ProxyCommand(f"ssh {user}@{host} -p 22 nc {machine} 22")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(
+    client.set_missing_host_key_policy(  # lgtm [py/paramiko-missing-host-key-validation]
         paramiko.AutoAddPolicy
-    )  # lgtm [py/paramiko-missing-host-key-validation]
-    client.connect(machine, port=22, username=user, sock=proxy)
+    )
+    client.connect(machine, username=user, sock=proxy)
 
     def output(x):
         return None
@@ -172,6 +174,9 @@ def lab_update(ts=None):
 
 def pretty_lab_update():
     qstat = get_output("qstat -f")
+    qstat = qstat.split("\n\n########")[0]
+    qstat = qstat.replace("linux-x64     a", "linux-x64")
+    qstat += "\n"
 
     reserved_d = defaultdict(list)
     actual_d = defaultdict(list)
@@ -182,7 +187,10 @@ def pretty_lab_update():
 
         if ".q@compute-" in node:
             queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
-            load_avg = float(_load_avg)
+            
+            if _load_avg != "-NA-":
+                load_avg = float(_load_avg)
+                
             q_group = queue.split("@")[0]
 
             _, _, _equipped_cpus = resv_used_tot.split("/")
@@ -211,7 +219,9 @@ def pretty_lab_update():
                     else:
                         reserved_emoji = ":余裕:"
 
-            if load_avg > float(equipped_cpus) + 0.5:
+            if _load_avg == "-NA-":
+                actual_emoji = ":disconnected:"
+            elif load_avg > float(equipped_cpus) + 0.5:
                 actual_emoji = ":cpu利用率超過:"
             elif load_avg > float(equipped_cpus) - 1.0:
                 actual_emoji = ":全力:"
@@ -275,10 +285,12 @@ def memory_usage():
 
     for mem in "max_mem", "used_mem", "max_swap", "used_swap":
         df.loc[:, mem] = (
-            df[mem].str.replace("M", "e3").str.replace("G", "e6").astype(float)
+            df[mem]
+            .str.replace("-", "0")
+            .str.replace("M", "e3")
+            .str.replace("G", "e6")
+            .astype(float)
         )
-
-    # df.used_mem / df.max_mem > 0.9
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
 
@@ -317,6 +329,8 @@ def memory_usage():
         # post_slack(msg)
         post_lab_slack(msg)
 
+    df.load = df.load.replace("-").astype(float)
+    df.cores = df.cores.replace("-").astype(float)
     df["free_cpus"] = df.load - df.cores
     df_overcpu = df[df.free_cpus > 1]
 
