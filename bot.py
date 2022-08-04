@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import socket
+from collections import defaultdict
 from io import StringIO
 from time import sleep
 
@@ -57,16 +58,16 @@ def check_date():
         with TimeoutContext(60):
             with get_interaction() as interact:
                 interact.send("")
-                interact.expect(PROMPT)
+                res = interact.expect(PROMPT)
 
                 interact.send('eval "$(ssh-agent)"')
                 interact.expect(PROMPT)
 
                 interact.send("ssh-add " + DATEK)
                 sleep(3)
-
+               
                 interact.send(DATEP)
-                interact.expect(PROMPT)
+                res = interact.expect(PROMPT)
 
                 interact.send(DATECMD)
                 interact.expect(PROMPT)
@@ -80,11 +81,14 @@ def check_date():
                 output = output.replace(" R ", " :pi-run: ")
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
+                output = output.replace(f"~ > {DATECMD}", "")
+           
+                if res == -1:
+                    output = ":maintenance:"
+                elif ":" not in output:
+                    output = ":ジョブなし:"
 
-                if ":" not in output:
-                    output = ":gre-humming:"
-
-                post_lab_slack(":gre-humming:", DATEN, ":datem:")
+                post_lab_slack(output, DATEN, ":datem:")
 
                 return None
 
@@ -92,13 +96,16 @@ def check_date():
         post_lab_slack(":maintenance:", DATEN, ":datem:")
 
 
-def post_lab_slack(text: str, username="mirai", emoji: str = ":ssh-mirai:") -> None:
+def post_lab_slack(
+    text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
+) -> None:
     web_client = WebClient(token=os.environ["LAB_TOKEN"])
-    web_client.chat_postMessage(
+    return web_client.chat_postMessage(
         text=text,
         channel=os.environ["LAB_CHANNEL"],
         username=username,
         icon_emoji=emoji,
+        thread_ts=ts,
     )
 
 
@@ -110,7 +117,7 @@ def post_slack(text: str) -> None:
             {
                 "text": text,
                 "username": "stat bot ({0})".format(socket.gethostname()),
-                "link_names": 1,  # 名前をリンク化
+                "link_names": 1,
             }
         ),
     )
@@ -119,8 +126,10 @@ def post_slack(text: str) -> None:
 def get_interaction():
     proxy = paramiko.ProxyCommand(f"ssh {user}@{host} -p 22 nc {machine} 22")
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    client.connect(machine, port=22, username=user, sock=proxy)
+    client.set_missing_host_key_policy(  # lgtm [py/paramiko-missing-host-key-validation]
+        paramiko.AutoAddPolicy
+    )
+    client.connect(machine, username=user, sock=proxy)
 
     def output(x):
         return None
@@ -131,7 +140,6 @@ def get_interaction():
 
 
 def get_output(command: str) -> None:
-
     with get_interaction() as interact:
         interact.send("")
         interact.expect(PROMPT)
@@ -144,7 +152,11 @@ def get_output(command: str) -> None:
         return output
 
 
-def lab_update():
+def lab_update(ts=None):
+    usage = get_output("/usr/sge/bin/linux-x64/qstat -f")
+    # usage = f"```\n{usage}\n```"
+    post_lab_slack(usage, ts=ts)
+
     mirai = get_output("/usr/sge/bin/linux-x64/qstat")
     mirai = f"```\n{mirai}\n```"
     mirai_last = ""
@@ -157,11 +169,79 @@ def lab_update():
 
     if mirai != mirai_last:
         # post_slack(mirai)
-        post_lab_slack(mirai)
+        post_lab_slack(mirai, ts=ts)
 
-    usage = get_output("/usr/sge/bin/linux-x64/qstat -f")
-    # usage = f"```\n{usage}\n```"
-    post_lab_slack(usage)
+
+def pretty_lab_update():
+    qstat = get_output("qstat -f")
+    qstat = qstat.split("\n\n########")[0]
+    qstat = qstat.replace("linux-x64     a", "linux-x64")
+    qstat += "\n"
+
+    reserved_d = defaultdict(list)
+    actual_d = defaultdict(list)
+
+    for node in qstat.split(
+        "---------------------------------------------------------------------------------\n"
+    ):
+
+        if ".q@compute-" in node:
+            queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
+            
+            if _load_avg != "-NA-":
+                load_avg = float(_load_avg)
+                
+            q_group = queue.split("@")[0]
+
+            _, _, _equipped_cpus = resv_used_tot.split("/")
+            equipped_cpus = float(_equipped_cpus)
+
+            reserved_emoji = ":ジョブなし:"
+
+            if len(node.split("\n")) > 2:
+
+                user_d = defaultdict(int)
+
+                for user_line in node.split("\n")[1:-1]:
+                    user = user_line.split()[3]
+                    user_resv = user_line.split()[-1]
+
+                    user_d[user] += int(user_resv)
+
+                if len(user_d.keys()) == 1:
+                    if list(user_d.values())[0] == equipped_cpus:
+                        reserved_emoji = f":{user}:"
+                    else:
+                        reserved_emoji = ":余裕:"
+                else:
+                    if sum(list(user_d.values())) == equipped_cpus:
+                        reserved_emoji = ":全力:"
+                    else:
+                        reserved_emoji = ":余裕:"
+
+            if _load_avg == "-NA-":
+                actual_emoji = ":disconnected:"
+            elif load_avg > float(equipped_cpus) + 0.5:
+                actual_emoji = ":cpu利用率超過:"
+            elif load_avg > float(equipped_cpus) - 1.0:
+                actual_emoji = ":全力:"
+            elif load_avg < 1.0:
+                actual_emoji = ":ジョブなし:"
+            elif load_avg < 32:
+                actual_emoji = f":n{int(load_avg)}:"
+            else:
+                actual_emoji = ":余裕:"
+
+            reserved_d[q_group] += [reserved_emoji]
+            actual_d[q_group] += [actual_emoji]
+
+    msg = ""
+    for group, reserved in reserved_d.items():
+        msg += f"*{group}*\n"
+        msg += " ".join(reserved) + " reserved\n"
+        msg += " ".join(actual_d[group]) + " actual\n"
+
+    return post_lab_slack(msg)
 
 
 def my_update():
@@ -205,10 +285,12 @@ def memory_usage():
 
     for mem in "max_mem", "used_mem", "max_swap", "used_swap":
         df.loc[:, mem] = (
-            df[mem].str.replace("M", "e3").str.replace("G", "e6").astype(float)
+            df[mem]
+            .str.replace("-", "0")
+            .str.replace("M", "e3")
+            .str.replace("G", "e6")
+            .astype(float)
         )
-
-    # df.used_mem / df.max_mem > 0.9
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
 
@@ -247,6 +329,8 @@ def memory_usage():
         # post_slack(msg)
         post_lab_slack(msg)
 
+    df.load = df.load.replace("-").astype(float)
+    df.cores = df.cores.replace("-").astype(float)
     df["free_cpus"] = df.load - df.cores
     df_overcpu = df[df.free_cpus > 1]
 
@@ -265,9 +349,14 @@ def memory_usage():
 
 def main():
 
-    lab_update()
-    memory_usage()
-    check_date()
+    try:
+        memory_usage()
+        res = pretty_lab_update()
+        lab_update(ts=res.get("ts", None))
+        check_date()
+    except paramiko.ssh_exception.SSHException:
+        sleep(180)
+        main()
 
 
 if __name__ == "__main__":
