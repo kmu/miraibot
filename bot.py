@@ -65,7 +65,7 @@ def check_date():
 
                 interact.send("ssh-add " + DATEK)
                 sleep(3)
-               
+
                 interact.send(DATEP)
                 res = interact.expect(PROMPT)
 
@@ -82,7 +82,7 @@ def check_date():
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
-           
+
                 if res == -1:
                     output = ":maintenance:"
                 elif ":" not in output:
@@ -187,10 +187,10 @@ def pretty_lab_update():
 
         if ".q@compute-" in node:
             queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
-            
+
             if _load_avg != "-NA-":
                 load_avg = float(_load_avg)
-                
+
             q_group = queue.split("@")[0]
 
             _, _, _equipped_cpus = resv_used_tot.split("/")
