@@ -187,7 +187,10 @@ def pretty_lab_update():
     ):
 
         if ".q@compute-" in node:
-            queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
+            line_elements = node.split("\n")[0].split()
+            queue = line_elements[0]
+            resv_used_tot = line_elements[2]
+            _load_avg = line_elements[3]
 
             if _load_avg != "-NA-":
                 load_avg = float(_load_avg)
@@ -219,8 +222,10 @@ def pretty_lab_update():
                         reserved_emoji = ":全力:"
                     else:
                         reserved_emoji = ":余裕:"
-
-            if _load_avg == "-NA-":
+            
+            if line_elements[-1] == "d":
+                actual_emoji = ":disconnected:"
+            elif _load_avg == "-NA-":
                 actual_emoji = ":disconnected:"
             elif load_avg > float(equipped_cpus) + 0.5:
                 actual_emoji = ":cpu利用率超過:"
