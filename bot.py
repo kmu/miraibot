@@ -222,7 +222,7 @@ def pretty_lab_update():
                         reserved_emoji = ":全力:"
                     else:
                         reserved_emoji = ":余裕:"
-            
+
             if line_elements[-1] == "d":
                 actual_emoji = ":disconnected:"
             elif _load_avg == "-NA-":
