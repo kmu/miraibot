@@ -54,20 +54,21 @@ DATEQSTAT = os.environ["DATEQSTAT"]
 
 
 def check_date():
+    output = ""
     try:
         with TimeoutContext(60):
             with get_interaction() as interact:
                 interact.send("")
-                res = interact.expect(PROMPT)
+                interact.expect(PROMPT)
 
                 interact.send('eval "$(ssh-agent)"')
                 interact.expect(PROMPT)
 
                 interact.send("ssh-add " + DATEK)
                 sleep(3)
-               
+
                 interact.send(DATEP)
-                res = interact.expect(PROMPT)
+                interact.expect(PROMPT)
 
                 interact.send(DATECMD)
                 interact.expect(PROMPT)
@@ -82,8 +83,8 @@ def check_date():
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
                 output = output.replace(f"~ > {DATECMD}", "")
-           
-                if res == -1:
+
+                if "" == output.strip():
                     output = ":maintenance:"
                 elif ":" not in output:
                     output = ":ジョブなし:"
@@ -186,11 +187,14 @@ def pretty_lab_update():
     ):
 
         if ".q@compute-" in node:
-            queue, _, resv_used_tot, _load_avg, _ = node.split("\n")[0].split()
-            
+            line_elements = node.split("\n")[0].split()
+            queue = line_elements[0]
+            resv_used_tot = line_elements[2]
+            _load_avg = line_elements[3]
+
             if _load_avg != "-NA-":
                 load_avg = float(_load_avg)
-                
+
             q_group = queue.split("@")[0]
 
             _, _, _equipped_cpus = resv_used_tot.split("/")
@@ -219,7 +223,9 @@ def pretty_lab_update():
                     else:
                         reserved_emoji = ":余裕:"
 
-            if _load_avg == "-NA-":
+            if line_elements[-1] == "d":
+                actual_emoji = ":disconnected:"
+            elif _load_avg == "-NA-":
                 actual_emoji = ":disconnected:"
             elif load_avg > float(equipped_cpus) + 0.5:
                 actual_emoji = ":cpu利用率超過:"
