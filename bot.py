@@ -293,8 +293,9 @@ def memory_usage():
         df.loc[:, mem] = (
             df[mem]
             .str.replace("-", "0")
-            .str.replace("M", "e3")
-            .str.replace("G", "e6")
+            .str.replace("K", "e3")
+            .str.replace("M", "e6")
+            .str.replace("G", "e9")
             .astype(float)
         )
 
