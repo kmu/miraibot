@@ -330,7 +330,7 @@ def memory_usage():
         msg = ""
         for user in merged_df["user"].unique():
             # userごとにメモリ使用量が高いキューをまとめる
-            queues = ', '.join(merged_df[merged_df["user"] == user]["queue"].unique())
+            queues = ", ".join(merged_df[merged_df["user"] == user]["queue"].unique())
 
             msg += f"@{user}\n:warning: {queues}のジョブが"
             msg += f"{high_memory_ratio}%以上のメモリを消費してしまっています。"
@@ -351,7 +351,7 @@ def memory_usage():
         msg = ""
         for user in df_overcpu["user"].unique():
             # userごとに割り当てコア数以上のCPUを利用しているキューをまとめる
-            queues = ', '.join(merged_df[merged_df["user"] == user]["queue"].unique())
+            queues = ", ".join(df_overcpu[df_overcpu["user"] == user]["queue"].unique())
 
             msg += f"@{user}\n:warning: {queues}のジョブが"
             msg += "割り当てコア数以上のCPUを消費しています。"
