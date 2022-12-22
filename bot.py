@@ -301,7 +301,8 @@ def memory_usage():
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
 
-    high_memory = df[df["MEMUSE"] > 95]
+    high_memory_ratio = 95
+    high_memory = df[df["MEMUSE"] > high_memory_ratio]
 
     qstat = get_output("/usr/sge/bin/linux-x64/qstat | tail -n +3")
 
@@ -327,9 +328,12 @@ def memory_usage():
 
     if len(merged_df) > 0:
         msg = ""
-        for _, row in merged_df.iterrows():
-            msg += f"@{row.user}\n:warning: {row.queue}のジョブ#{row.jobID}が"
-            msg += f"{row.MEMUSE:.3g}%ものメモリを消費してしまっています。"
+        for user in merged_df["user"].unique():
+            # userごとにメモリ使用量が高いキューをまとめる
+            queues = ', '.join(merged_df[merged_df["user"] == user]["queue"].unique())
+
+            msg += f"@{user}\n:warning: {queues}のジョブが"
+            msg += f"{high_memory_ratio}%以上のメモリを消費してしまっています。"
             msg += "低速化やクラッシュの恐れがあります。\n"
             msg += "よりメモリの大きなノードを使用しましょう。\n"
 
@@ -345,8 +349,11 @@ def memory_usage():
 
     if len(df_overcpu) > 0:
         msg = ""
-        for _, row in df_overcpu.iterrows():
-            msg += f"@{row.user}\n:warning: {row.queue}のジョブ#{row.jobID}が"
+        for user in df_overcpu["user"].unique():
+            # userごとに割り当てコア数以上のCPUを利用しているキューをまとめる
+            queues = ', '.join(merged_df[merged_df["user"] == user]["queue"].unique())
+
+            msg += f"@{user}\n:warning: {queues}のジョブが"
             msg += "割り当てコア数以上のCPUを消費しています。"
             msg += "並列化の問題か、ゾンビプロセスの存在の可能性があります。\n"
 
