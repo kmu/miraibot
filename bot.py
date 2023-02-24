@@ -5,7 +5,7 @@ import socket
 from collections import defaultdict
 from io import StringIO
 from time import sleep
-from datetime import datetime
+import datetime
 
 import pandas as pd
 import paramiko
@@ -255,14 +255,17 @@ def pretty_lab_update():
                     if(oldest_jobtime > jobtime):
                         oldest_jobtime = jobtime
 
-                if (oldest_jobtime - nowtime).total_seconds() < 60*60: # under 1h
-                    time_emoji = f":{int(jobtime/60/15)*15}m:"
-                elif (oldest_jobtime - nowtime).total_seconds() < 4*60*60: # under 4h
-                    time_emoji = f":{int(jobtime/60/60)}h:"
-                elif (oldest_jobtime - nowtime).total_seconds() < 24*60*60: # under 1d
-                    time_emoji = f":{int(jobtime/60/60/4)*4}h:"
-                elif (oldest_jobtime - nowtime).total_seconds() < 14*24*60*60: # under 2week
-                    time_emoji = f":{int(jobtime/60/60/24)}d:"
+                total_jobtime = (nowtime - oldest_jobtime).total_seconds()
+                if total_jobtime< 4*60: # under 1h
+                    time_emoji = f":{int(total_jobtime/60)}m:"
+                elif total_jobtime< 60*60: # under 1h
+                    time_emoji = f":{int(total_jobtime/60/15)*15}m:"
+                elif total_jobtime < 4*60*60: # under 4h
+                    time_emoji = f":{int(total_jobtime/60/60)}h:"
+                elif total_jobtime < 24*60*60: # under 1d
+                    time_emoji = f":{int(total_jobtime/60/60/4)*4}h:"
+                elif total_jobtime < 14*24*60*60: # under 2week
+                    time_emoji = f":{int(total_jobtime/60/60/24)}d:"
                 else:
                     time_emoji = f":over14d:"
 
