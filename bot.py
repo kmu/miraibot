@@ -5,6 +5,7 @@ import socket
 from collections import defaultdict
 from io import StringIO
 from time import sleep
+from datetime import datetime
 
 import pandas as pd
 import paramiko
@@ -181,6 +182,7 @@ def pretty_lab_update():
 
     reserved_d = defaultdict(list)
     actual_d = defaultdict(list)
+    jobtime_d = defaultdict(list)
 
     for node in qstat.split(
         "---------------------------------------------------------------------------------\n"
@@ -241,11 +243,37 @@ def pretty_lab_update():
             reserved_d[q_group] += [reserved_emoji]
             actual_d[q_group] += [actual_emoji]
 
+            time_emoji = ":ジョブなし:"
+
+            if len(node.split("\n")) > 2:
+                
+                nowtime = datetime.datetime.now()
+                oldest_jobtime = nowtime
+                for user_line in node.split("\n")[1:-1]:
+                    jobtime_str = user_line.split()[5] + " " + user_line.split()[6]
+                    jobtime = datetime.datetime.strptime(jobtime_str, '%m/%d/%Y %H:%M:%S')
+                    if(oldest_jobtime > jobtime):
+                        oldest_jobtime = jobtime
+
+                if (oldest_jobtime - nowtime).total_seconds() < 60*60: # under 1h
+                    time_emoji = f":{int(jobtime/60/15)*15}m:"
+                elif (oldest_jobtime - nowtime).total_seconds() < 4*60*60: # under 4h
+                    time_emoji = f":{int(jobtime/60/60)}h:"
+                elif (oldest_jobtime - nowtime).total_seconds() < 24*60*60: # under 1d
+                    time_emoji = f":{int(jobtime/60/60/4)*4}h:"
+                elif (oldest_jobtime - nowtime).total_seconds() < 14*24*60*60: # under 2week
+                    time_emoji = f":{int(jobtime/60/60/24)}d:"
+                else:
+                    time_emoji = f":over14d:"
+
+            jobtime_d[q_group] += [time_emoji]
+
     msg = ""
     for group, reserved in reserved_d.items():
         msg += f"*{group}*\n"
         msg += " ".join(reserved) + " reserved\n"
         msg += " ".join(actual_d[group]) + " actual\n"
+        msg += " ".join(jobtime_d[group]) + " time\n"
 
     return post_lab_slack(msg)
 
