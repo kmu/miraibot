@@ -244,14 +244,15 @@ def pretty_lab_update():
             actual_d[q_group] += [actual_emoji]
 
             time_emoji = ":ジョブなし:"
-
+            
             if len(node.split("\n")) > 2:
-                
-                nowtime = datetime.datetime.now()
-                latest_jobtime = datetime.datetime.min
+                JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
+                nowtime = datetime.datetime.now(JST)
+                latest_jobtime = datetime.datetime(2000, 1, 1, 0, 0, 0, 0,tzinfo=JST)
                 for user_line in node.split("\n")[1:-1]:
                     jobtime_str = user_line.split()[5] + " " + user_line.split()[6]
                     jobtime = datetime.datetime.strptime(jobtime_str, '%m/%d/%Y %H:%M:%S')
+                    jobtime = jobtime.replace(tzinfo=JST)
                     if(latest_jobtime < jobtime):
                         latest_jobtime = jobtime
 
