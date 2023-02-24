@@ -248,14 +248,14 @@ def pretty_lab_update():
             if len(node.split("\n")) > 2:
                 
                 nowtime = datetime.datetime.now()
-                oldest_jobtime = nowtime
+                latest_jobtime = datetime.datetime.min
                 for user_line in node.split("\n")[1:-1]:
                     jobtime_str = user_line.split()[5] + " " + user_line.split()[6]
                     jobtime = datetime.datetime.strptime(jobtime_str, '%m/%d/%Y %H:%M:%S')
-                    if(oldest_jobtime > jobtime):
-                        oldest_jobtime = jobtime
+                    if(latest_jobtime < jobtime):
+                        latest_jobtime = jobtime
 
-                total_jobtime = (nowtime - oldest_jobtime).total_seconds()
+                total_jobtime = (nowtime - latest_jobtime).total_seconds()
                 if total_jobtime< 4*60: # under 1h
                     time_emoji = f":{int(total_jobtime/60)}m:"
                 elif total_jobtime< 60*60: # under 1h
