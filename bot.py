@@ -258,8 +258,8 @@ def pretty_lab_update():
                 for user_line in node.split("\n")[1:-1]:
                     jobtime_str = user_line.split()[5] + " " + user_line.split()[6]
                     jobtime = datetime.datetime.strptime(
-+                        jobtime_str, "%m/%d/%Y %H:%M:%S"
-+                    )
+                        jobtime_str, "%m/%d/%Y %H:%M:%S"
+                    )
                     jobtime = jobtime.replace(tzinfo=JST)
                     if latest_jobtime < jobtime:
                         latest_jobtime = jobtime
