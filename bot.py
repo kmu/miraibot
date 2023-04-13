@@ -48,13 +48,14 @@ host = os.environ["SSH_GATEWAY_HOST"]
 machine = os.environ["SSH_MACHINE"]
 
 DATECMD = os.environ["DATECMD"]
+DATECMD_GPU = os.environ["DATECMD_GPU"]
 DATEK = os.environ["DATEK"]
 DATEN = os.environ["DATEN"]
 DATEP = os.environ["DATEP"]
 DATEQSTAT = os.environ["DATEQSTAT"]
 
 
-def check_date():
+def check_date(env = "cpu"):
     output = ""
     try:
         with TimeoutContext(60):
@@ -70,8 +71,10 @@ def check_date():
 
                 interact.send(DATEP)
                 interact.expect(PROMPT)
-
-                interact.send(DATECMD)
+                if env == "cpu":
+                    interact.send(DATECMD)
+                elif env == "gpu":
+                    interact.send(DATECMD_GPU)
                 interact.expect(PROMPT)
 
                 interact.send(DATEQSTAT)
@@ -83,7 +86,10 @@ def check_date():
                 output = output.replace(" R ", " :pi-run: ")
                 output = output.replace(" Q ", " :gre-humming: ")
                 output = output.replace("  ", " ")
-                output = output.replace(f"~ > {DATECMD}", "")
+                if env == "cpu":
+                    output = output.replace(f"~ > {DATECMD}", "")
+                elif env == "gpu":
+                    output = output.replace(f"~ > {DATECMD_GPU}", "")
 
                 if "" == output.strip():
                     output = ":maintenance:"
@@ -246,26 +252,28 @@ def pretty_lab_update():
             time_emoji = ":ジョブなし:"
             
             if len(node.split("\n")) > 2:
-                JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
+                JST = datetime.timezone(datetime.timedelta(hours=+9), "JST")
                 nowtime = datetime.datetime.now(JST)
-                latest_jobtime = datetime.datetime(2000, 1, 1, 0, 0, 0, 0,tzinfo=JST)
+                latest_jobtime = datetime.datetime(2000, 1, 1, 0, 0, 0, 0, tzinfo=JST)
                 for user_line in node.split("\n")[1:-1]:
                     jobtime_str = user_line.split()[5] + " " + user_line.split()[6]
-                    jobtime = datetime.datetime.strptime(jobtime_str, '%m/%d/%Y %H:%M:%S')
+                    jobtime = datetime.datetime.strptime(
++                        jobtime_str, "%m/%d/%Y %H:%M:%S"
++                    )
                     jobtime = jobtime.replace(tzinfo=JST)
-                    if(latest_jobtime < jobtime):
+                    if latest_jobtime < jobtime:
                         latest_jobtime = jobtime
 
                 total_jobtime = (nowtime - latest_jobtime).total_seconds()
-                if total_jobtime< 4*60: # under 1h
+                if total_jobtime < 4 * 60:  # under 1h
                     time_emoji = f":{int(total_jobtime/60)}m:"
-                elif total_jobtime< 60*60: # under 1h
+                elif total_jobtime < 60 * 60:  # under 1h
                     time_emoji = f":{int(total_jobtime/60/15)*15}m:"
-                elif total_jobtime < 4*60*60: # under 4h
+                elif total_jobtime < 4 * 60 * 60:  # under 4h
                     time_emoji = f":{int(total_jobtime/60/60)}h:"
-                elif total_jobtime < 24*60*60: # under 1d
+                elif total_jobtime < 24 * 60 * 60:  # under 1d
                     time_emoji = f":{int(total_jobtime/60/60/4)*4}h:"
-                elif total_jobtime < 14*24*60*60: # under 2week
+                elif total_jobtime < 14 * 24 * 60 * 60:  # under 2week
                     time_emoji = f":{int(total_jobtime/60/60/24)}d:"
                 else:
                     time_emoji = f":over14d:"
@@ -398,7 +406,8 @@ def main():
         memory_usage()
         res = pretty_lab_update()
         lab_update(ts=res.get("ts", None))
-        check_date()
+        check_date("cpu")
+        check_date("gpu")
     except paramiko.ssh_exception.SSHException:
         post_lab_slack(":maintenance:")
 
