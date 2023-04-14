@@ -65,7 +65,6 @@ jobs:
         SSH_MACHINE: ${{ secrets.SSH_MACHINE }}
         SSH_GATEWAY_HOST: ${{ secrets.SSH_GATEWAY_HOST }}
         DATECMD: ${{ secrets.DATECMD }}
-        DATECMD_GPU: ${{ secrets.DATECMD_GPU }}
         DATEK: ${{ secrets.DATEK }}
         DATEP: ${{ secrets.DATEP }}
         DATEN: ${{ secrets.DATEN }}

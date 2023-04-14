@@ -55,7 +55,7 @@ DATEP = os.environ["DATEP"]
 DATEQSTAT = os.environ["DATEQSTAT"]
 
 
-def check_date(env = "cpu"):
+def check_date():
     output = ""
     try:
         with TimeoutContext(60):
@@ -71,32 +71,34 @@ def check_date(env = "cpu"):
 
                 interact.send(DATEP)
                 interact.expect(PROMPT)
-                if env == "cpu":
-                    interact.send(DATECMD)
-                elif env == "gpu":
-                    interact.send(DATECMD_GPU)
+                interact.send(DATECMD)
                 interact.expect(PROMPT)
+                
+                if not "Last login" in interact.current_output:
+                    post_lab_slack(":maintenance:", DATEN, ":datem:")
+                    return None
 
-                interact.send(DATEQSTAT)
-                interact.expect(PROMPT)
-
-                output = interact.current_output
-                output = "\n".join(output.split("\n")[1:-1])
-
-                output = output.replace(" R ", " :pi-run: ")
-                output = output.replace(" Q ", " :gre-humming: ")
-                output = output.replace("  ", " ")
-                if env == "cpu":
+                for env in ["CPU", "GPU"]:
+                    if env == "GPU":
+                        interact.send("ssh gpu")
+                        interact.expect(PROMPT)
+                    output = interact.current_output
+         
+                    interact.send(DATEQSTAT)
+                    interact.expect(PROMPT)
+                    output = interact.current_output
+                    output = "\n".join(output.split("\n")[1:-1])
+                    output = output.replace(" R ", " :pi-run: ")
+                    output = output.replace(" Q ", " :gre-humming: ")
+                    output = output.replace("  ", " ")
                     output = output.replace(f"~ > {DATECMD}", "")
-                elif env == "gpu":
-                    output = output.replace(f"~ > {DATECMD_GPU}", "")
 
-                if "" == output.strip():
-                    output = ":maintenance:"
-                elif ":" not in output:
-                    output = ":ジョブなし:"
+                    if ":" not in output:
+                        output = ":ジョブなし:"
 
-                post_lab_slack(output, DATEN, ":datem:")
+                    output = "*" + env + "*" + "\n" + output
+
+                    post_lab_slack(output, DATEN, ":datem:")
 
                 return None
 
@@ -403,11 +405,10 @@ def memory_usage():
 
 def main():
     try:
-        memory_usage()
-        res = pretty_lab_update()
-        lab_update(ts=res.get("ts", None))
-        check_date("cpu")
-        check_date("gpu")
+        # memory_usage()
+        # res = pretty_lab_update()
+        # lab_update(ts=res.get("ts", None))
+        check_date()
     except paramiko.ssh_exception.SSHException:
         post_lab_slack(":maintenance:")
 
