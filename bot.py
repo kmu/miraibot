@@ -48,7 +48,6 @@ host = os.environ["SSH_GATEWAY_HOST"]
 machine = os.environ["SSH_MACHINE"]
 
 DATECMD = os.environ["DATECMD"]
-DATECMD_GPU = os.environ["DATECMD_GPU"]
 DATEK = os.environ["DATEK"]
 DATEN = os.environ["DATEN"]
 DATEP = os.environ["DATEP"]
