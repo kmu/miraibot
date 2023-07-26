@@ -19,8 +19,8 @@ jobs:
         python -m pip install --upgrade pip
     - run: pip install ruff
     - run: |
-      ruff check .
-      ruff fix .
+        ruff check .
+        ruff fix .
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: 'style fixes by ruff'pysen run lint
