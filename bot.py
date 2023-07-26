@@ -5,6 +5,7 @@ import socket
 from collections import defaultdict
 from io import StringIO
 from time import sleep
+import datetime
 
 import pandas as pd
 import paramiko
@@ -45,57 +46,6 @@ user = os.environ["SSH_USER"]
 
 host = os.environ["SSH_GATEWAY_HOST"]
 machine = os.environ["SSH_MACHINE"]
-
-DATECMD = os.environ["DATECMD"]
-DATEK = os.environ["DATEK"]
-DATEN = os.environ["DATEN"]
-DATEP = os.environ["DATEP"]
-DATEQSTAT = os.environ["DATEQSTAT"]
-
-
-def check_date():
-    output = ""
-    try:
-        with TimeoutContext(60):
-            with get_interaction() as interact:
-                interact.send("")
-                interact.expect(PROMPT)
-
-                interact.send('eval "$(ssh-agent)"')
-                interact.expect(PROMPT)
-
-                interact.send("ssh-add " + DATEK)
-                sleep(3)
-
-                interact.send(DATEP)
-                interact.expect(PROMPT)
-
-                interact.send(DATECMD)
-                interact.expect(PROMPT)
-
-                interact.send(DATEQSTAT)
-                interact.expect(PROMPT)
-
-                output = interact.current_output
-                output = "\n".join(output.split("\n")[1:-1])
-
-                output = output.replace(" R ", " :pi-run: ")
-                output = output.replace(" Q ", " :gre-humming: ")
-                output = output.replace("  ", " ")
-                output = output.replace(f"~ > {DATECMD}", "")
-
-                if "" == output.strip():
-                    output = ":maintenance:"
-                elif ":" not in output:
-                    output = ":ジョブなし:"
-
-                post_lab_slack(output, DATEN, ":datem:")
-
-                return None
-
-    except TimeoutException:
-        post_lab_slack(":maintenance:", DATEN, ":datem:")
-
 
 def post_lab_slack(
     text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
@@ -181,6 +131,7 @@ def pretty_lab_update():
 
     reserved_d = defaultdict(list)
     actual_d = defaultdict(list)
+    jobtime_d = defaultdict(list)
 
     for node in qstat.split(
         "---------------------------------------------------------------------------------\n"
@@ -241,11 +192,43 @@ def pretty_lab_update():
             reserved_d[q_group] += [reserved_emoji]
             actual_d[q_group] += [actual_emoji]
 
+            time_emoji = ":ジョブなし:"
+            
+            if len(node.split("\n")) > 2:
+                JST = datetime.timezone(datetime.timedelta(hours=+9), "JST")
+                nowtime = datetime.datetime.now(JST)
+                latest_jobtime = datetime.datetime(2000, 1, 1, 0, 0, 0, 0, tzinfo=JST)
+                for user_line in node.split("\n")[1:-1]:
+                    jobtime_str = user_line.split()[5] + " " + user_line.split()[6]
+                    jobtime = datetime.datetime.strptime(
+                        jobtime_str, "%m/%d/%Y %H:%M:%S"
+                    )
+                    jobtime = jobtime.replace(tzinfo=JST)
+                    if latest_jobtime < jobtime:
+                        latest_jobtime = jobtime
+
+                total_jobtime = (nowtime - latest_jobtime).total_seconds()
+                if total_jobtime < 4 * 60:  # under 1h
+                    time_emoji = f":{int(total_jobtime/60)}m:"
+                elif total_jobtime < 60 * 60:  # under 1h
+                    time_emoji = f":{int(total_jobtime/60/15)*15}m:"
+                elif total_jobtime < 4 * 60 * 60:  # under 4h
+                    time_emoji = f":{int(total_jobtime/60/60)}h:"
+                elif total_jobtime < 24 * 60 * 60:  # under 1d
+                    time_emoji = f":{int(total_jobtime/60/60/4)*4}h:"
+                elif total_jobtime < 14 * 24 * 60 * 60:  # under 2week
+                    time_emoji = f":{int(total_jobtime/60/60/24)}d:"
+                else:
+                    time_emoji = f":over14d:"
+
+            jobtime_d[q_group] += [time_emoji]
+
     msg = ""
     for group, reserved in reserved_d.items():
         msg += f"*{group}*\n"
         msg += " ".join(reserved) + " reserved\n"
         msg += " ".join(actual_d[group]) + " actual\n"
+        msg += " ".join(jobtime_d[group]) + " time\n"
 
     return post_lab_slack(msg)
 
@@ -301,7 +284,8 @@ def memory_usage():
 
     df["MEMUSE"] = df.used_mem / df.max_mem * 100
 
-    high_memory = df[df["MEMUSE"] > 95]
+    high_memory_ratio = 95
+    high_memory = df[df["MEMUSE"] > high_memory_ratio]
 
     qstat = get_output("/usr/sge/bin/linux-x64/qstat | tail -n +3")
 
@@ -327,9 +311,12 @@ def memory_usage():
 
     if len(merged_df) > 0:
         msg = ""
-        for _, row in merged_df.iterrows():
-            msg += f"@{row.user}\n:warning: {row.queue}のジョブ#{row.jobID}が"
-            msg += f"{row.MEMUSE:.3g}%ものメモリを消費してしまっています。"
+        for user in merged_df["user"].unique():
+            # userごとにメモリ使用量が高いキューをまとめる
+            queues = ", ".join(merged_df[merged_df["user"] == user]["queue"].unique())
+
+            msg += f"@{user}\n:warning: {queues}のジョブが"
+            msg += f"{high_memory_ratio}%以上のメモリを消費してしまっています。"
             msg += "低速化やクラッシュの恐れがあります。\n"
             msg += "よりメモリの大きなノードを使用しましょう。\n"
 
@@ -345,8 +332,11 @@ def memory_usage():
 
     if len(df_overcpu) > 0:
         msg = ""
-        for _, row in df_overcpu.iterrows():
-            msg += f"@{row.user}\n:warning: {row.queue}のジョブ#{row.jobID}が"
+        for user in df_overcpu["user"].unique():
+            # userごとに割り当てコア数以上のCPUを利用しているキューをまとめる
+            queues = ", ".join(df_overcpu[df_overcpu["user"] == user]["queue"].unique())
+
+            msg += f"@{user}\n:warning: {queues}のジョブが"
             msg += "割り当てコア数以上のCPUを消費しています。"
             msg += "並列化の問題か、ゾンビプロセスの存在の可能性があります。\n"
 
@@ -359,7 +349,6 @@ def main():
         memory_usage()
         res = pretty_lab_update()
         lab_update(ts=res.get("ts", None))
-        check_date()
     except paramiko.ssh_exception.SSHException:
         post_lab_slack(":maintenance:")
 
