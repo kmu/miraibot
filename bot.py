@@ -117,7 +117,7 @@ def post_slack(text: str) -> None:
         data=json.dumps(
             {
                 "text": text,
-                "username": "stat bot ({0})".format(socket.gethostname()),
+                "username": f"stat bot ({socket.gethostname()})",
                 "link_names": 1,
             }
         ),
