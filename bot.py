@@ -4,7 +4,6 @@ import signal
 import socket
 from collections import defaultdict
 from io import StringIO
-from time import sleep
 import datetime
 
 import pandas as pd
@@ -47,64 +46,6 @@ user = os.environ["SSH_USER"]
 host = os.environ["SSH_GATEWAY_HOST"]
 machine = os.environ["SSH_MACHINE"]
 
-DATECMD = os.environ["DATECMD"]
-DATEK = os.environ["DATEK"]
-DATEN = os.environ["DATEN"]
-DATEP = os.environ["DATEP"]
-DATEQSTAT = os.environ["DATEQSTAT"]
-
-
-def check_date():
-    output = ""
-    try:
-        with TimeoutContext(60):
-            with get_interaction() as interact:
-                interact.send("")
-                interact.expect(PROMPT)
-
-                interact.send('eval "$(ssh-agent)"')
-                interact.expect(PROMPT)
-
-                interact.send("ssh-add " + DATEK)
-                sleep(3)
-
-                interact.send(DATEP)
-                interact.expect(PROMPT)
-                interact.send(DATECMD)
-                interact.expect(PROMPT)
-                
-                if not "Last login" in interact.current_output:
-                    post_lab_slack(":maintenance:", DATEN, ":datem:")
-                    return None
-
-                for env in ["CPU", "GPU"]:
-                    if env == "GPU":
-                        interact.send("ssh gpu")
-                        interact.expect(PROMPT)
-                    output = interact.current_output
-         
-                    interact.send(DATEQSTAT)
-                    interact.expect(PROMPT)
-                    output = interact.current_output
-                    output = "\n".join(output.split("\n")[1:-1])
-                    output = output.replace(" R ", " :pi-run: ")
-                    output = output.replace(" Q ", " :gre-humming: ")
-                    output = output.replace("  ", " ")
-                    output = output.replace(f"~ > {DATECMD}", "")
-
-                    if ":" not in output:
-                        output = ":ジョブなし:"
-
-                    output = "*" + env + "*" + "\n" + output
-
-                    post_lab_slack(output, DATEN, ":datem:")
-
-                return None
-
-    except TimeoutException:
-        post_lab_slack(":maintenance:", DATEN, ":datem:")
-
-
 def post_lab_slack(
     text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
 ) -> None:
@@ -125,7 +66,7 @@ def post_slack(text: str) -> None:
         data=json.dumps(
             {
                 "text": text,
-                "username": "stat bot ({0})".format(socket.gethostname()),
+                "username": f"stat bot ({socket.gethostname()})",
                 "link_names": 1,
             }
         ),
@@ -277,7 +218,7 @@ def pretty_lab_update():
                 elif total_jobtime < 14 * 24 * 60 * 60:  # under 2week
                     time_emoji = f":{int(total_jobtime/60/60/24)}d:"
                 else:
-                    time_emoji = f":over14d:"
+                    time_emoji = ":over14d:"
 
             jobtime_d[q_group] += [time_emoji]
 
@@ -407,7 +348,6 @@ def main():
         memory_usage()
         res = pretty_lab_update()
         lab_update(ts=res.get("ts", None))
-        check_date()
     except paramiko.ssh_exception.SSHException:
         post_lab_slack(":maintenance:")
 
