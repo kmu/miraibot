@@ -4,6 +4,7 @@ import signal
 import socket
 from collections import defaultdict
 from io import StringIO
+from time import sleep
 import datetime
 
 import pandas as pd
@@ -46,6 +47,7 @@ user = os.environ["SSH_USER"]
 host = os.environ["SSH_GATEWAY_HOST"]
 machine = os.environ["SSH_MACHINE"]
 
+
 def post_lab_slack(
     text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
 ) -> None:
@@ -66,7 +68,7 @@ def post_slack(text: str) -> None:
         data=json.dumps(
             {
                 "text": text,
-                "username": f"stat bot ({socket.gethostname()})",
+                "username": "stat bot ({0})".format(socket.gethostname()),
                 "link_names": 1,
             }
         ),
@@ -218,7 +220,7 @@ def pretty_lab_update():
                 elif total_jobtime < 14 * 24 * 60 * 60:  # under 2week
                     time_emoji = f":{int(total_jobtime/60/60/24)}d:"
                 else:
-                    time_emoji = ":over14d:"
+                    time_emoji = f":over14d:"
 
             jobtime_d[q_group] += [time_emoji]
 
@@ -274,6 +276,7 @@ def memory_usage():
     for mem in "max_mem", "used_mem", "max_swap", "used_swap":
         df.loc[:, mem] = (
             df[mem]
+            .astype(str)
             .str.replace("-", "0")
             .str.replace("K", "e3")
             .str.replace("M", "e6")
@@ -342,10 +345,31 @@ def memory_usage():
         # post_slack(msg)
         post_lab_slack(msg)
 
+def check_error():
+    msg = ""
+    machine_errors = get_output("qstat -f | grep '\-NA\-' -A 1").split("\n")
+    if machine_errors != ['']:
+        for i in len(achine_errors):
+            computer_name = machine_errors[i*2].split()[0]
+            user_name = machine_errors[i*2+1].split()[3]
+            msg += f"@{user_name}\n:warning: {computer_name}に問題が発生している可能性があります。\n"
+    
+    Eqw_errors = get_output("qstat -f | grep Eqw").split("\n")
+    if Eqw_errors != ['']:
+        for Eqw_error in Eqw_errors:
+            job_id = Eqw_error.split()[0]
+            user_name = Eqw_error.split()[3]
+            error_reason_str =  get_output("qstat -f | grep Eqw")
+            msg += f"@{user_name}\n:warning: {job_id}のジョブに問題が発生している可能性があります。\n"
+            msg += error_reason_str + "\n"
+    if msg != "":
+        post_lab_slack(msg)
+    
 
 def main():
     try:
         memory_usage()
+        check_error()
         res = pretty_lab_update()
         lab_update(ts=res.get("ts", None))
     except paramiko.ssh_exception.SSHException:
