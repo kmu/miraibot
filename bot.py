@@ -4,7 +4,6 @@ import signal
 import socket
 from collections import defaultdict
 from io import StringIO
-from time import sleep
 import datetime
 
 import pandas as pd
@@ -68,7 +67,7 @@ def post_slack(text: str) -> None:
         data=json.dumps(
             {
                 "text": text,
-                "username": "stat bot ({0})".format(socket.gethostname()),
+                "username": f"stat bot ({socket.gethostname()})",
                 "link_names": 1,
             }
         ),
@@ -220,7 +219,7 @@ def pretty_lab_update():
                 elif total_jobtime < 14 * 24 * 60 * 60:  # under 2week
                     time_emoji = f":{int(total_jobtime/60/60/24)}d:"
                 else:
-                    time_emoji = f":over14d:"
+                    time_emoji = ":over14d:"
 
             jobtime_d[q_group] += [time_emoji]
 
@@ -349,7 +348,7 @@ def check_error():
     msg = ""
     machine_errors = get_output("qstat -f | grep '\-NA\-' -A 1").split("\n")
     if machine_errors != ['']:
-        for i in len(achine_errors):
+        for i in len(machine_errors):
             computer_name = machine_errors[i*2].split()[0]
             user_name = machine_errors[i*2+1].split()[3]
             msg += f"@{user_name}\n:warning: {computer_name}に問題が発生している可能性があります。\n"
