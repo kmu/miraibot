@@ -4,7 +4,6 @@ import signal
 import socket
 from collections import defaultdict
 from io import StringIO
-from time import sleep
 import datetime
 
 import pandas as pd
@@ -68,7 +67,7 @@ def post_slack(text: str) -> None:
         data=json.dumps(
             {
                 "text": text,
-                "username": "stat bot ({0})".format(socket.gethostname()),
+                "username": f"stat bot ({socket.gethostname()})",
                 "link_names": 1,
             }
         ),
@@ -220,7 +219,7 @@ def pretty_lab_update():
                 elif total_jobtime < 14 * 24 * 60 * 60:  # under 2week
                     time_emoji = f":{int(total_jobtime/60/60/24)}d:"
                 else:
-                    time_emoji = f":over14d:"
+                    time_emoji = ":over14d:"
 
             jobtime_d[q_group] += [time_emoji]
 
