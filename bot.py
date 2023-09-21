@@ -349,7 +349,7 @@ def check_error():
     msg = ""
     machine_errors = get_output("qstat -f | grep '\-NA\-' -A 1").split("\n")
     if machine_errors != ['']:
-        for i in len(achine_errors):
+        for i in len(machine_errors):
             computer_name = machine_errors[i*2].split()[0]
             user_name = machine_errors[i*2+1].split()[3]
             msg += f"@{user_name}\n:warning: {computer_name}に問題が発生している可能性があります。\n"
