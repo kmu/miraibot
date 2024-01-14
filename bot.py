@@ -283,7 +283,7 @@ def memory_usage():
             .astype(float)
         )
 
-    df["MEMUSE"] = df.used_mem / (df.max_mem*1e-10) * 100
+    df["MEMUSE"] = df.used_mem / (df.max_mem+1e-10) * 100
 
     high_memory_ratio = 95
     high_memory = df[df["MEMUSE"] > high_memory_ratio]
