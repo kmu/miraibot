@@ -193,7 +193,7 @@ def pretty_lab_update():
             actual_d[q_group] += [actual_emoji]
 
             time_emoji = ":ジョブなし:"
-            
+
             if len(node.split("\n")) > 2:
                 JST = datetime.timezone(datetime.timedelta(hours=+9), "JST")
                 nowtime = datetime.datetime.now(JST)
@@ -283,7 +283,7 @@ def memory_usage():
             .astype(float)
         )
 
-    df["MEMUSE"] = df.used_mem / df.max_mem * 100
+    df["MEMUSE"] = df.used_mem / (df.max_mem*1e-10) * 100
 
     high_memory_ratio = 95
     high_memory = df[df["MEMUSE"] > high_memory_ratio]
@@ -352,7 +352,7 @@ def check_error():
             computer_name = machine_errors[i*2].split()[0]
             user_name = machine_errors[i*2+1].split()[3]
             msg += f"@{user_name}\n:warning: {computer_name}に問題が発生している可能性があります。\n"
-    
+
     Eqw_errors = get_output("qstat -f | grep Eqw").split("\n")
     if Eqw_errors != ['']:
         for Eqw_error in Eqw_errors:
@@ -363,7 +363,7 @@ def check_error():
             msg += error_reason_str + "\n"
     if msg != "":
         post_lab_slack(msg)
-    
+
 
 def main():
     try:
