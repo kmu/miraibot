@@ -325,7 +325,7 @@ def memory_usage():
         post_lab_slack(msg)
 
     df.load = df.load.replace("-", "0").str.replace("K", "e3").replace("", "0").astype(float)
-    df.cores = df.cores.replace("-").astype(float)
+    df.cores = df.cores.replace("-", "0").astype(float)
     df["free_cpus"] = df.load - df.cores
     df_overcpu = df[df.free_cpus > 1]
 
