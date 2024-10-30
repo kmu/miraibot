@@ -32,43 +32,10 @@ jobs:
         path: |
           my_mirai.txt
         key: my_mirai_txt-${{ github.sha }}
-    - name: Install SSH key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_KEY }}
-        name: id_rsa
-        known_hosts: ${{ secrets.KNOWN_HOSTS }}
-        config: ${{ secrets.CONFIG }}
-        if_key_exists: fail
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Run
-      env:
-        LAB_TOKEN: ${{ secrets.LAB_TOKEN }}
-        LAB_CHANNEL: ${{ secrets.LAB_CHANNEL }}
-        WEB_HOOK_URL: ${{ secrets.WEB_HOOK_URL }}
-        SSH_CONFIG: ${{ secrets.CONFIG }}
-        SSH_USER: ${{ secrets.SSH_USER }}
-        SSH_MACHINE: ${{ secrets.SSH_MACHINE }}
-        SSH_GATEWAY_HOST: ${{ secrets.SSH_GATEWAY_HOST }}
-        DATECMD: ${{ secrets.DATECMD }}
-        DATEK: ${{ secrets.DATEK }}
-        DATEP: ${{ secrets.DATEP }}
-        DATEN: ${{ secrets.DATEN }}
-        DATEQSTAT: ${{ secrets.DATEQSTAT }}
-
-      run: |
-        max_attempts=3
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-          echo "Attempt $attempt of $max_attempts"
-          python bot.py && break
-          attempt=$((attempt + 1))
-          sleep 5 # wait for 5 seconds before retrying
-        done
-        if [ $attempt -gt $max_attempts ]; then
-          echo "All attempts failed"
-          exit 1
-        fi
+        - uses: actions/checkout@v4
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
