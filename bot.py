@@ -360,13 +360,10 @@ def check_error():
 
 
 def main():
-    try:
-        memory_usage()
-        check_error()
-        res = pretty_lab_update()
-        lab_update(ts=res.get("ts", None))
-    except paramiko.ssh_exception.SSHException:
-        post_lab_slack(":maintenance:")
+    memory_usage()
+    check_error()
+    res = pretty_lab_update()
+    lab_update(ts=res.get("ts", None))
 
 
 if __name__ == "__main__":
