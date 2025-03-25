@@ -49,16 +49,21 @@ machine = os.environ["SSH_MACHINE"]
 
 def post_lab_slack(
     text: str, username="mirai", emoji: str = ":ssh-mirai:", ts=None
-) -> None:
+) -> dict:
     web_client = WebClient(token=os.environ["LAB_TOKEN"])
-    return web_client.chat_postMessage(
+    
+    if not text or text.strip() == "":
+        text = "(no text provided)"  # fallback text
+    
+    response = web_client.chat_postMessage(
         text=text,
         channel=os.environ["LAB_CHANNEL"],
         username=username,
         icon_emoji=emoji,
         thread_ts=ts,
     )
-
+    
+    return response.data
 
 def post_slack(text: str) -> None:
     WEB_HOOK_URL = os.environ["WEB_HOOK_URL"]
@@ -364,10 +369,10 @@ def main():
         memory_usage()
         check_error()
         res = pretty_lab_update()
-        lab_update(ts=res.get("ts", None))
+        ts = res.get("ts") if res else None
+        lab_update(ts=ts)
     except paramiko.ssh_exception.SSHException:
         post_lab_slack(":maintenance:")
-
 
 if __name__ == "__main__":
     main()
