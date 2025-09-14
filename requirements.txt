@@ -2,4 +2,4 @@ requests==2.32.4
 paramiko==3.5.1
 paramiko_expect==0.3.5
 pandas==2.2.3
-slack-sdk==3.35.0
+slack-sdk==3.36.0
