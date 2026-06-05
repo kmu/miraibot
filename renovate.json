@@ -4,4 +4,11 @@
   "pip_requirements": {
     "fileMatch": ["requirements.txt", "requirements-dev.txt"]
   }
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    }
+  ],
+  "platformAutomerge": true
 }
